@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Million Dollar Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --gold:#ffd700; --gold2:#ffaa00; --dark:#050508; --darker:#020203;
+    --cyan:#00ffff; --red:#ff3333; --green:#00ff88; --purple:#aa55ff;
+    --panel:rgba(5,5,15,0.95); --border:rgba(255,215,0,0.25);
+  }
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);}
+  canvas{display:block;}
+  #header{position:fixed;top:0;left:0;right:0;z-index:50;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(5,5,15,0.97),transparent);pointer-events:none;}
+  #header *{pointer-events:auto;}
+  .logo{font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:900;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5);letter-spacing:0.05em;}
+  .logo span{color:var(--cyan);}
+  .hud-stats{display:flex;gap:1.5rem;align-items:center;}
+  .stat-pill{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:rgba(255,255,255,0.45);letter-spacing:0.1em;}
+  .stat-pill b{color:var(--gold);font-size:0.8rem;}
+  .early-pill{font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;background:rgba(255,60,0,0.15);border:1px solid rgba(255,80,0,0.5);color:#ff6622;padding:0.3rem 0.8rem;animation:blink 1.5s ease infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.5}}
+  .nav-btn{font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;background:transparent;border:1px solid var(--border);color:var(--gold);padding:0.5rem 1.1rem;cursor:pointer;transition:all 0.3s;}
+  .nav-btn:hover{background:rgba(255,215,0,0.1);border-color:var(--gold);box-shadow:0 0 15px rgba(255,215,0,0.2);}
+  .nav-btn.market{border-color:rgba(170,85,255,0.4);color:var(--purple);}
+  .nav-btn.market:hover{background:rgba(170,85,255,0.1);border-color:var(--purple);}
+  #crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:60;}
+  #crosshair svg{filter:drop-shadow(0 0 4px rgba(255,215,0,0.8));}
+  #bottomHud{position:fixed;bottom:0;left:0;right:0;z-index:50;padding:1rem 2rem;display:flex;align-items:flex-end;justify-content:space-between;background:linear-gradient(to top,rgba(5,5,15,0.97),transparent);pointer-events:none;}
+  .controls-hint{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:rgba(255,255,255,0.25);letter-spacing:0.1em;line-height:1.9;}
+  .controls-hint span{color:var(--gold);}
+  #targetInfo{text-align:right;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.35);line-height:1.8;transition:all 0.3s;}
+  #targetInfo.active{color:var(--gold);}
+  .cube-id{font-size:1rem;color:var(--gold);font-family:'Orbitron',sans-serif;}
+  .cube-status-free{color:var(--green);}
+  .cube-status-early{color:#ff6622;}
+  .cube-status-taken{color:var(--cyan);}
+  .cube-status-sale{color:var(--purple);}
+  #progressBar{position:fixed;left:50%;bottom:2.5rem;transform:translateX(-50%);z-index:51;width:280px;pointer-events:none;}
+  .prog-label{font-family:'Share Tech Mono',monospace;font-size:0.52rem;color:rgba(255,255,255,0.25);text-align:center;letter-spacing:0.15em;margin-bottom:0.3rem;}
+  .prog-track{height:2px;background:rgba(255,215,0,0.08);overflow:hidden;}
+  .prog-fill{height:100%;background:linear-gradient(90deg,var(--gold2),var(--gold),var(--cyan));width:0%;transition:width 0.6s;box-shadow:0 0 8px var(--gold);}
+  .prog-text{font-family:'Share Tech Mono',monospace;font-size:0.52rem;color:var(--gold);text-align:center;margin-top:0.3rem;}
+  #scanlines{position:fixed;inset:0;z-index:45;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);pointer-events:none;}
+  #vignette{position:fixed;inset:0;z-index:44;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.65) 100%);pointer-events:none;}
+  #earlyBanner{position:fixed;top:4.5rem;left:50%;transform:translateX(-50%);z-index:52;background:rgba(255,60,0,0.12);border:1px solid rgba(255,80,0,0.4);padding:0.5rem 1.5rem;text-align:center;pointer-events:none;display:flex;gap:1.5rem;align-items:center;}
+  .eb-text{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:#ff8844;letter-spacing:0.1em;}
+  .eb-text b{color:#ffcc00;}
+  #earlyBanner.hidden{display:none;}
+  .overlay{position:fixed;inset:0;z-index:200;background:rgba(2,2,5,0.92);display:flex;align-items:center;justify-content:center;padding:2rem;opacity:0;pointer-events:none;transition:opacity 0.4s;backdrop-filter:blur(8px);}
+  .overlay.open{opacity:1;pointer-events:all;}
+  .modal-box{max-width:580px;width:100%;max-height:90vh;overflow-y:auto;border:1px solid var(--border);background:var(--panel);padding:2.5rem;position:relative;transform:translateY(20px);transition:transform 0.4s;box-shadow:0 0 60px rgba(255,215,0,0.07);}
+  .overlay.open .modal-box{transform:translateY(0);}
+  .modal-box.purple-theme{border-color:rgba(170,85,255,0.3);}
+  .modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+  .modal-box.purple-theme::before{background:linear-gradient(90deg,transparent,var(--purple),transparent);}
+  .modal-close{position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:rgba(255,255,255,0.3);font-size:1.1rem;cursor:pointer;transition:color 0.3s;font-family:'Share Tech Mono',monospace;}
+  .modal-close:hover{color:var(--gold);}
+  .modal-tag{font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:0.25em;color:var(--gold);margin-bottom:0.5rem;}
+  .modal-tag.purple{color:var(--purple);}
+  .modal-title{font-family:'Orbitron',sans-serif;font-size:1.35rem;font-weight:700;color:white;margin-bottom:0.3rem;}
+  .modal-sub{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.28);margin-bottom:1.8rem;letter-spacing:0.1em;}
+  .form-group{margin-bottom:1.1rem;}
+  .form-label{display:block;font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:0.15em;color:rgba(255,255,255,0.38);margin-bottom:0.35rem;text-transform:uppercase;}
+  .form-input,.form-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,215,0,0.14);color:white;padding:0.65rem 0.9rem;font-family:'Rajdhani',sans-serif;font-size:0.95rem;outline:none;transition:border-color 0.3s;}
+  .form-input:focus,.form-textarea:focus{border-color:var(--gold);box-shadow:0 0 10px rgba(255,215,0,0.08);}
+  .form-textarea{resize:vertical;min-height:65px;}
+  .form-input::placeholder,.form-textarea::placeholder{color:rgba(255,255,255,0.18);}
+  .color-row{display:flex;gap:0.5rem;align-items:center;}
+  .color-pick{width:40px;height:36px;border:1px solid rgba(255,215,0,0.2);background:transparent;cursor:pointer;padding:2px;}
+  .price-box{background:rgba(255,215,0,0.05);border:1px solid var(--border);padding:0.9rem 1.1rem;margin-bottom:1.3rem;display:flex;justify-content:space-between;align-items:center;}
+  .price-box.early-bg{background:rgba(255,80,0,0.08);border-color:rgba(255,80,0,0.35);}
+  .price-box.purple-bg{background:rgba(170,85,255,0.07);border-color:rgba(170,85,255,0.3);}
+  .price-label{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:rgba(255,255,255,0.35);letter-spacing:0.1em;}
+  .price-amount{font-family:'Orbitron',sans-serif;font-size:1.5rem;color:var(--gold);font-weight:700;}
+  .price-amount.orange{color:#ff8844;}
+  .price-amount.purple{color:var(--purple);}
+  .price-old{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:rgba(255,255,255,0.25);text-decoration:line-through;margin-right:0.4rem;}
+  .wallet-options{display:flex;flex-direction:column;gap:0.7rem;margin-bottom:1.3rem;}
+  .wallet-btn{display:flex;align-items:center;gap:1rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,215,0,0.14);padding:0.85rem 1.1rem;cursor:pointer;transition:all 0.3s;font-family:'Rajdhani',sans-serif;font-size:1rem;color:white;width:100%;}
+  .wallet-btn:hover{border-color:var(--gold);background:rgba(255,215,0,0.06);}
+  .wallet-icon{font-size:1.3rem;}
+  .wallet-name{font-weight:600;}
+  .wallet-sub{font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,255,255,0.28);margin-top:0.1rem;}
+  .pay-address-box{background:rgba(0,0,0,0.4);border:1px solid rgba(255,215,0,0.2);padding:0.9rem;margin-bottom:0.9rem;word-break:break-all;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--gold);letter-spacing:0.04em;cursor:pointer;transition:background 0.3s;}
+  .pay-address-box:hover{background:rgba(255,215,0,0.05);}
+  .pay-amount-big{text-align:center;font-family:'Orbitron',sans-serif;font-size:1.7rem;color:white;margin:0.8rem 0;}
+  .pay-amount-big span{color:var(--gold);}
+  .pay-timer{text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:rgba(255,255,255,0.28);margin-bottom:0.9rem;}
+  .pay-timer b{color:var(--red);}
+  .success-block{display:none;text-align:center;padding:1rem 0;}
+  .success-icon{font-size:2.8rem;margin-bottom:0.8rem;}
+  .success-title{font-family:'Orbitron',sans-serif;font-size:1.3rem;color:var(--green);margin-bottom:0.5rem;}
+  .success-desc{font-family:'Rajdhani',sans-serif;color:rgba(255,255,255,0.45);line-height:1.7;margin-bottom:1.3rem;}
+  #adModal{position:fixed;inset:0;z-index:200;background:rgba(2,2,5,0.9);display:flex;align-items:center;justify-content:center;padding:2rem;opacity:0;pointer-events:none;transition:opacity 0.4s;backdrop-filter:blur(8px);}
+  #adModal.open{opacity:1;pointer-events:all;}
+  .ad-box{max-width:520px;width:100%;border:1px solid rgba(0,255,255,0.28);background:var(--panel);padding:2.5rem;position:relative;box-shadow:0 0 60px rgba(0,255,255,0.04);transform:scale(0.96);transition:transform 0.4s;}
+  #adModal.open .ad-box{transform:scale(1);}
+  .ad-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);}
+  .ad-box.for-sale-box{border-color:rgba(170,85,255,0.4);}
+  .ad-box.for-sale-box::before{background:linear-gradient(90deg,transparent,var(--purple),transparent);}
+  .ad-cube-num{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:rgba(0,255,255,0.45);letter-spacing:0.2em;margin-bottom:0.8rem;}
+  .ad-title{font-family:'Orbitron',sans-serif;font-size:1.5rem;color:white;margin-bottom:0.4rem;}
+  .ad-desc{font-family:'Rajdhani',sans-serif;font-size:1rem;color:rgba(255,255,255,0.55);line-height:1.7;margin-bottom:1.3rem;}
+  .ad-link{display:inline-flex;align-items:center;gap:0.5rem;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--cyan);text-decoration:none;border:1px solid rgba(0,255,255,0.28);padding:0.55rem 1.1rem;transition:all 0.3s;letter-spacing:0.1em;}
+  .ad-link:hover{background:rgba(0,255,255,0.08);border-color:var(--cyan);}
+  .ad-owner{margin-top:1.3rem;font-family:'Share Tech Mono',monospace;font-size:0.52rem;color:rgba(255,255,255,0.18);border-top:1px solid rgba(255,255,255,0.05);padding-top:0.9rem;letter-spacing:0.08em;}
+  .for-sale-badge{display:inline-block;background:rgba(170,85,255,0.2);border:1px solid rgba(170,85,255,0.5);color:var(--purple);font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.15em;padding:0.3rem 0.8rem;margin-bottom:1rem;animation:blink 2s ease infinite;}
+  .for-sale-price{font-family:'Orbitron',sans-serif;font-size:1.6rem;color:var(--purple);margin:0.8rem 0;}
+  .market-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:0.8rem;margin-top:1rem;max-height:420px;overflow-y:auto;}
+  .market-card{background:rgba(170,85,255,0.06);border:1px solid rgba(170,85,255,0.2);padding:1rem;cursor:pointer;transition:all 0.3s;}
+  .market-card:hover{border-color:var(--purple);background:rgba(170,85,255,0.12);transform:translateY(-2px);}
+  .mc-num{font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(170,85,255,0.5);letter-spacing:0.15em;margin-bottom:0.3rem;}
+  .mc-title{font-family:'Orbitron',sans-serif;font-size:0.82rem;color:white;margin-bottom:0.3rem;}
+  .mc-price{font-family:'Orbitron',sans-serif;font-size:1.1rem;color:var(--purple);}
+  .mc-original{font-family:'Share Tech Mono',monospace;font-size:0.5rem;color:rgba(255,255,255,0.2);margin-top:0.2rem;}
+  .market-empty{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:rgba(255,255,255,0.2);text-align:center;padding:3rem;letter-spacing:0.1em;}
+  .btn-primary{width:100%;background:var(--gold);color:black;border:none;padding:0.88rem;font-family:'Orbitron',sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;box-shadow:0 0 20px rgba(255,215,0,0.15);}
+  .btn-primary:hover{background:white;}
+  .btn-primary.orange{background:linear-gradient(90deg,#ff6600,#ffaa00);color:black;box-shadow:0 0 20px rgba(255,100,0,0.2);}
+  .btn-primary.orange:hover{background:white;}
+  .btn-primary.purple{background:var(--purple);color:white;box-shadow:0 0 20px rgba(170,85,255,0.2);}
+  .btn-primary.purple:hover{background:white;color:black;}
+  .btn-secondary{width:100%;background:transparent;color:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.1);padding:0.65rem;font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:0.15em;cursor:pointer;margin-top:0.5rem;transition:all 0.3s;}
+  .btn-secondary:hover{color:white;border-color:rgba(255,255,255,0.28);}
+  .btn-danger{width:100%;background:rgba(255,40,40,0.15);color:#ff6666;border:1px solid rgba(255,40,40,0.3);padding:0.65rem;font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:0.15em;cursor:pointer;margin-top:0.5rem;transition:all 0.3s;}
+  .btn-danger:hover{background:rgba(255,40,40,0.3);}
+  .info-row{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);padding:0.4rem 0;}
+  .info-row span:first-child{font-family:'Share Tech Mono',monospace;font-size:0.56rem;color:rgba(255,255,255,0.3);letter-spacing:0.08em;text-transform:uppercase;}
+  .info-row span:last-child{font-family:'Rajdhani',sans-serif;color:rgba(255,255,255,0.7);font-size:0.9rem;}
+  #toast{position:fixed;bottom:4rem;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(5,5,15,0.97);border:1px solid var(--gold);color:var(--gold);font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;padding:0.65rem 1.4rem;z-index:300;opacity:0;transition:all 0.4s;white-space:nowrap;box-shadow:0 0 20px rgba(255,215,0,0.15);}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #minimap{position:fixed;bottom:1rem;right:1rem;z-index:55;width:110px;height:110px;background:rgba(5,5,15,0.8);border:1px solid rgba(255,215,0,0.12);overflow:hidden;}
+  #minimap canvas{width:100%;height:100%;}
+  .minimap-label{position:absolute;top:3px;left:5px;font-family:'Share Tech Mono',monospace;font-size:0.42rem;color:rgba(255,215,0,0.35);letter-spacing:0.08em;}
+  #splash{position:fixed;inset:0;z-index:500;background:var(--darker);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s;}
+  #splash.hide{opacity:0;pointer-events:none;}
+  .splash-logo{font-family:'Orbitron',sans-serif;font-size:clamp(2rem,6vw,4.5rem);font-weight:900;color:var(--gold);text-align:center;line-height:1.1;margin-bottom:0.5rem;animation:pulse 2s ease infinite;}
+  @keyframes pulse{0%,100%{text-shadow:0 0 40px rgba(255,215,0,0.4);}50%{text-shadow:0 0 80px rgba(255,215,0,0.8);}}
+  .splash-sub{font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:rgba(255,255,255,0.28);letter-spacing:0.3em;text-align:center;margin-bottom:1rem;text-transform:uppercase;}
+  .splash-early-box{background:rgba(255,60,0,0.1);border:1px solid rgba(255,80,0,0.4);padding:0.8rem 2rem;margin-bottom:1.5rem;text-align:center;}
+  .splash-early-box span{font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:#ff8844;letter-spacing:0.1em;}
+  .splash-early-box b{color:#ffcc00;font-size:1rem;}
+  .splash-desc{font-family:'Rajdhani',sans-serif;font-size:1.05rem;color:rgba(255,255,255,0.45);text-align:center;max-width:480px;line-height:1.7;margin-bottom:2rem;}
+  .splash-desc strong{color:var(--gold);}
+  .splash-enter{font-family:'Orbitron',sans-serif;font-size:0.78rem;font-weight:700;letter-spacing:0.3em;background:var(--gold);color:black;border:none;padding:1rem 2.8rem;cursor:pointer;transition:all 0.3s;text-transform:uppercase;box-shadow:0 0 30px rgba(255,215,0,0.3);}
+  .splash-enter:hover{background:white;box-shadow:0 0 50px rgba(255,255,255,0.3);}
+  .splash-line{width:180px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:1.5rem auto;animation:scan 2s linear infinite;}
+  @keyframes scan{0%{opacity:0.3}50%{opacity:1}100%{opacity:0.3}}
+  .early-notice{background:rgba(255,80,0,0.1);border:1px solid rgba(255,80,0,0.35);padding:0.7rem 1rem;margin-bottom:1.2rem;}
+  .early-notice-title{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#ff8844;letter-spacing:0.1em;}
+  .early-notice-desc{font-family:'Rajdhani',sans-serif;font-size:0.85rem;color:rgba(255,255,255,0.5);margin-top:0.2rem;}
+  @media(max-width:600px){.hud-stats{display:none;}.logo{font-size:0.95rem;}#minimap{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo">THE MILLION<br>DOLLAR WEB</div>
+  <div class="splash-sub">1,000 cubes · forever on the internet</div>
+  <div class="splash-line"></div>
+  <div class="splash-early-box">
+    🔥 <span>EARLY BIRD: First <b>15 cubes</b> only <b>$1</b> each — <span id="splashEarlyLeft">15</span> remaining</span>
+  </div>
+  <p class="splash-desc"><strong>$1,000</strong> per cube · <strong>$1 early bird</strong> · Resell anytime on our marketplace.</p>
+  <button class="splash-enter" onclick="enterWorld()">Enter the World →</button>
+</div>
+
+<div id="scanlines"></div>
+<div id="vignette"></div>
+
+<div id="earlyBanner">
+  <div class="eb-text">🔥 EARLY BIRD — <b id="earlyLeft">15</b> cubes at <b>$1</b> remaining</div>
+</div>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="logo">THE MILLION<span>$</span>WEB</div>
+  <div class="hud-stats">
+    <div class="stat-pill">SOLD: <b id="soldCount">0</b>/1000</div>
+    <div class="stat-pill">RAISED: <b id="raisedAmount">$0</b></div>
+    <div class="stat-pill">FREE: <b id="availCount">1000</b></div>
+    <div class="early-pill" id="earlyPill">🔥 EARLY BIRD $1</div>
+  </div>
+  <div style="display:flex;gap:0.5rem">
+    <button class="nav-btn market" onclick="openMarket()">🏪 Marketplace</button>
+    <button class="nav-btn" onclick="openBuyModal(null)">Buy Cube</button>
+  </div>
+</div>
+
+<div id="crosshair">
+  <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+    <circle cx="19" cy="19" r="7" stroke="#ffd700" stroke-width="1" opacity="0.6"/>
+    <line x1="19" y1="2" x2="19" y2="11" stroke="#ffd700" stroke-width="1" opacity="0.6"/>
+    <line x1="19" y1="27" x2="19" y2="36" stroke="#ffd700" stroke-width="1" opacity="0.6"/>
+    <line x1="2" y1="19" x2="11" y2="19" stroke="#ffd700" stroke-width="1" opacity="0.6"/>
+    <line x1="27" y1="19" x2="36" y2="19" stroke="#ffd700" stroke-width="1" opacity="0.6"/>
+    <circle cx="19" cy="19" r="1.5" fill="#ffd700" opacity="0.9"/>
+  </svg>
+</div>
+
+<div id="progressBar">
+  <div class="prog-label">TOTAL RAISED</div>
+  <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+  <div class="prog-text"><span id="progText">$0 / $1,000,000</span></div>
+</div>
+
+<div id="bottomHud">
+  <div class="controls-hint">
+    <span>DRAG</span> to orbit &nbsp;|&nbsp; <span>SCROLL</span> to zoom &nbsp;|&nbsp; <span>CLICK</span> cube<br>
+    <span style="color:#ff6622">ORANGE</span> = $1 early &nbsp;·&nbsp; <span style="color:var(--gold)">GOLD</span> = $1,000 &nbsp;·&nbsp; <span style="color:var(--purple)">PURPLE</span> = for sale
+  </div>
+  <div id="targetInfo">
+    <div>AIM AT A CUBE</div>
+    <div style="font-size:0.52rem;margin-top:0.2rem;color:rgba(255,255,255,0.18)">NAVIGATE TO SELECT</div>
+  </div>
+</div>
+
+<div id="minimap">
+  <div class="minimap-label">OVERVIEW</div>
+  <canvas id="minimapCanvas"></canvas>
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════ BUY MODAL ═══════════ -->
+<div id="modalOverlay" class="overlay">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕ CLOSE</button>
+
+    <div id="formStep">
+      <div class="modal-tag" id="buyModalTag">✦ PURCHASE ADVERTISING CUBE</div>
+      <div class="modal-title">Claim Your Cube</div>
+      <div class="modal-sub" id="modalCubeNum">CUBE #— · ONE-TIME · NON-REFUNDABLE</div>
+      <div class="early-notice" id="earlyNotice" style="display:none">
+        <div class="early-notice-title">🔥 EARLY BIRD CUBE — Only $1!</div>
+        <div class="early-notice-desc">One of the first 15 founding cubes. Get in at $1 — normally $1,000.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ad Title / Company Name *</label>
+        <input class="form-input" id="adTitle" type="text" placeholder="e.g. CryptoVault, My Startup..." maxlength="40">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Short Description (max 120 chars)</label>
+        <textarea class="form-textarea" id="adDesc" placeholder="What do you want the world to know?" maxlength="120"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your URL / Link *</label>
+        <input class="form-input" id="adUrl" type="url" placeholder="https://yourwebsite.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cube Color</label>
+        <div class="color-row">
+          <input class="color-pick" type="color" id="adColor" value="#ffd700">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:rgba(255,255,255,0.28)">Choose your cube's glow color</span>
+        </div>
+      </div>
+      <div class="price-box" id="priceBox">
+        <div>
+          <div class="price-label">TOTAL COST</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;color:rgba(255,255,255,0.18);margin-top:0.12rem">ONE-TIME · PERMANENT</div>
+        </div>
+        <div>
+          <span class="price-old" id="priceOld" style="display:none">$1,000</span>
+          <span class="price-amount" id="priceDisplay">$1,000 USD</span>
+        </div>
+      </div>
+      <button class="btn-primary" id="buySubmitBtn" onclick="goToWallet()">Continue to Payment →</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+
+    <div id="walletStep" style="display:none">
+      <div class="modal-tag">✦ SELECT PAYMENT METHOD</div>
+      <div class="modal-title">Connect Wallet</div>
+      <div class="modal-sub" id="walletSub">Pay $1,000 USD in crypto</div>
+      <div class="wallet-options">
+        <button class="wallet-btn" onclick="goToPayment('ETH')"><span class="wallet-icon">⟠</span><div><div class="wallet-name">MetaMask / Ethereum</div><div class="wallet-sub">ETH · USDT · USDC</div></div></button>
+        <button class="wallet-btn" onclick="goToPayment('BTC')"><span class="wallet-icon">₿</span><div><div class="wallet-name">Bitcoin</div><div class="wallet-sub">Native BTC · Lightning</div></div></button>
+        <button class="wallet-btn" onclick="goToPayment('SOL')"><span class="wallet-icon">◎</span><div><div class="wallet-name">Phantom / Solana</div><div class="wallet-sub">SOL · SPL-USDC</div></div></button>
+        <button class="wallet-btn" onclick="goToPayment('BNB')"><span class="wallet-icon">⬡</span><div><div class="wallet-name">Trust Wallet / BNB</div><div class="wallet-sub">BNB · BSC-USDT</div></div></button>
+      </div>
+      <button class="btn-secondary" onclick="backToForm()">← Back</button>
+    </div>
+
+    <div id="paymentStep" style="display:none">
+      <div class="modal-tag" id="payChain">✦ ETHEREUM PAYMENT</div>
+      <div class="modal-title">Send Payment</div>
+      <div class="modal-sub">Send exactly the amount shown to the address below</div>
+      <div class="pay-amount-big" id="payAmountDisplay"><span>≈ 0.41 ETH</span></div>
+      <div class="form-label" style="margin-bottom:0.3rem">PAYMENT ADDRESS (tap to copy)</div>
+      <div class="pay-address-box" id="payAddress" onclick="copyAddress()">0x742d35Cc6634C0532925a3b8D4C9E4B9B2C1A2B3</div>
+      <div class="pay-timer">Awaiting confirmation... <b id="countdown">15:00</b></div>
+      <button class="btn-primary" onclick="simulatePayment()">✓ I've Sent the Payment</button>
+      <button class="btn-secondary" onclick="backToWallet()">← Change Wallet</button>
+    </div>
+
+    <div id="successStep" class="success-block">
+      <div class="success-icon">⬡</div>
+      <div class="success-title">CUBE CLAIMED!</div>
+      <p class="success-desc">Your ad is live forever. You can list it for resale anytime from the cube's detail view.</p>
+      <button class="btn-primary" onclick="closeModal()">View My Cube →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ AD VIEW MODAL ═══════════ -->
+<div id="adModal">
+  <div class="ad-box" id="adBox">
+    <button onclick="closeAdModal()" style="position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:rgba(255,255,255,0.28);font-size:1.1rem;cursor:pointer;font-family:'Share Tech Mono',monospace;">✕</button>
+    <div class="ad-cube-num" id="adCubeNum">CUBE #000 · CLAIMED</div>
+    <div class="for-sale-badge" id="forSaleBadge" style="display:none">🏪 FOR SALE</div>
+    <div class="ad-title" id="adTitle2"></div>
+    <div class="ad-desc" id="adDesc2"></div>
+    <div id="forSalePriceRow" style="display:none">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:rgba(170,85,255,0.6);letter-spacing:0.1em;margin-bottom:0.3rem">ASKING PRICE</div>
+      <div class="for-sale-price" id="forSalePrice"></div>
+    </div>
+    <a class="ad-link" id="adLink" href="#" target="_blank">→ VISIT WEBSITE</a>
+    <div id="adBuyBtns" style="margin-top:1rem;display:none">
+      <button class="btn-primary purple" onclick="buyResaleFromModal()">Buy This Cube</button>
+    </div>
+    <div id="adResellArea" style="margin-top:1rem;display:none">
+      <button class="btn-primary purple" id="listForSaleBtn" style="font-size:0.65rem" onclick="openResellFromAd()">🏪 List This Cube for Resale</button>
+      <button class="btn-danger" id="cancelListingBtn" style="display:none" onclick="cancelListing()">✕ Cancel My Listing</button>
+    </div>
+    <div class="ad-owner" id="adOwner"></div>
+  </div>
+</div>
+
+<!-- ═══════════ RESELL MODAL ═══════════ -->
+<div id="resellModal" class="overlay">
+  <div class="modal-box purple-theme">
+    <button class="modal-close" onclick="closeResellModal()">✕ CLOSE</button>
+    <div id="resellFormStep">
+      <div class="modal-tag purple">✦ LIST CUBE FOR RESALE</div>
+      <div class="modal-title">Sell Your Cube</div>
+      <div class="modal-sub" id="resellCubeLabel">CUBE #— · SET YOUR ASKING PRICE</div>
+      <div style="background:rgba(170,85,255,0.07);border:1px solid rgba(170,85,255,0.2);padding:1rem;margin-bottom:1.2rem;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:rgba(170,85,255,0.6);letter-spacing:0.08em;margin-bottom:0.4rem">CUBE CURRENTLY SHOWS</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:1rem;color:white" id="resellAdPreview">—</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,255,255,0.25);margin-top:0.2rem" id="resellPaidLabel">—</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your Asking Price in USD *</label>
+        <input class="form-input" id="resellPrice" type="number" min="1" placeholder="e.g. 2500" oninput="updateResellPreview()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your Contact (visible to buyers) *</label>
+        <input class="form-input" id="resellContact" type="text" placeholder="0x wallet, email, or Telegram @">
+      </div>
+      <div class="price-box purple-bg">
+        <div>
+          <div class="price-label">LISTING PRICE</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.48rem;color:rgba(255,255,255,0.18);margin-top:0.1rem">5% platform fee charged on sale</div>
+        </div>
+        <div class="price-amount purple" id="resellPricePreview">$— USD</div>
+      </div>
+      <button class="btn-primary purple" onclick="submitResellListing()">List for Sale →</button>
+      <button class="btn-secondary" onclick="closeResellModal()">Cancel</button>
+    </div>
+    <div class="success-block" id="resellSuccessStep">
+      <div class="success-icon">🏪</div>
+      <div class="success-title" style="color:var(--purple)">LISTED!</div>
+      <p class="success-desc">Your cube glows purple on the map and appears in the marketplace. Buyers will contact you directly.</p>
+      <button class="btn-primary purple" onclick="closeResellModal()">Done →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MARKETPLACE MODAL ═══════════ -->
+<div id="marketModal" class="overlay">
+  <div class="modal-box" style="max-width:680px;border-color:rgba(170,85,255,0.3)">
+    <button class="modal-close" onclick="closeMarket()">✕ CLOSE</button>
+    <div class="modal-tag purple">✦ SECONDARY MARKET</div>
+    <div class="modal-title">Cube Marketplace</div>
+    <div class="modal-sub">Cubes listed for resale by their owners — click any to view & contact seller</div>
+    <div class="market-grid" id="marketGrid"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══ CONFIG ═══
+const TOTAL_CUBES = 1000, GRID_W = 40, GRID_H = 25;
+const CUBE_SIZE = 1.8, GAP = 2.6;
+const EARLY_CUBES = 15, EARLY_PRICE = 1, NORMAL_PRICE = 1000;
+
+// ═══ STATE ═══
+const soldCubes = {};
+let selectedCube = null, viewingCube = null, resellTarget = null;
+let countdownInterval = null, currentChain = 'ETH';
+let time = 0, hovered = null;
+let isMouseDown = false, lastMouseX = 0, lastMouseY = 0;
+let theta = 0.3, phi = 0.6, radius = 55;
+const target3 = new THREE.Vector3(0,0,0);
+
+// ═══ DEMO DATA ═══
+[
+  {id:0, title:'CryptoVault',  desc:'Most secure DeFi vault on Ethereum. Earn up to 18% APY.', url:'https://cryptovault.io',    color:0x00ffff, paidPrice:1,    forSale:false},
+  {id:1, title:'NeonNFTs',     desc:'Premier NFT marketplace for artists. Zero gas fees.',      url:'https://neonnfts.xyz',      color:0xff00ff, paidPrice:1,    forSale:true, askPrice:500,  contact:'@neonnfts on Telegram'},
+  {id:2, title:'MoonRocket',   desc:'Track your crypto portfolio in real-time. 500+ coins.',    url:'https://moonrocket.app',    color:0xff6600, paidPrice:1,    forSale:false},
+  {id:7, title:'DegenDAO',     desc:'Community-governed DeFi protocol. 50,000+ degens.',        url:'https://degendao.finance',  color:0x00ff88, paidPrice:1000, forSale:false},
+  {id:15,title:'PixelForge',   desc:'Deploy smart contracts with zero code. Launch in minutes.',url:'https://pixelforge.dev',    color:0xffaa00, paidPrice:1000, forSale:true, askPrice:2500, contact:'0x1a2b...3c4d'},
+  {id:23,title:'MetaSpace',    desc:'VR coworking in the metaverse. Work from anywhere.',       url:'https://metaspace.vr',      color:0x4488ff, paidPrice:1000, forSale:false},
+  {id:31,title:'AlphaSignals', desc:'AI-powered trading signals. 73% accuracy rate.',           url:'https://alphasignals.io',   color:0xff3366, paidPrice:1000, forSale:false},
+  {id:45,title:'SolStaking',   desc:'Stake SOL and earn rewards. Audited by CertiK.',          url:'https://solstaking.fi',     color:0x9933ff, paidPrice:1000, forSale:true, askPrice:1800, contact:'solstaking@proton.me'},
+  {id:60,title:'HashBridge',   desc:'Cross-chain bridge for all networks. Bridge in 30s.',     url:'https://hashbridge.network',color:0xff9900, paidPrice:1000, forSale:false},
+  {id:99,title:'TheEnd.eth',   desc:'Last cube? Nope. But first-mover advantage is real.',     url:'https://theend.eth.link',   color:0xffffff, paidPrice:1000, forSale:false},
+].forEach(c => soldCubes[c.id] = {...c, wallet:'0xdemo...'+String(c.id).padStart(4,'0')});
+
+// ═══ THREE.JS SETUP ═══
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050508);
+scene.fog = new THREE.FogExp2(0x050508, 0.018);
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 200);
+camera.position.set(0,15,55); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+scene.add(new THREE.AmbientLight(0x111122, 0.5));
+const pl1 = new THREE.PointLight(0xffd700,1.5,80); pl1.position.set(0,20,0); scene.add(pl1);
+const pl2 = new THREE.PointLight(0x0044ff,0.8,80); pl2.position.set(-30,-10,20); scene.add(pl2);
+const gh = new THREE.GridHelper(120,40,0x111133,0x0a0a22); gh.position.y=-4; scene.add(gh);
+
+const geo = new THREE.BoxGeometry(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE);
+const edgeGeo = new THREE.EdgesGeometry(geo);
+const cubes = [];
+const cubeGroup = new THREE.Group(); scene.add(cubeGroup);
+
+for (let i=0;i<TOTAL_CUBES;i++) {
+  const col=i%GRID_W, row=Math.floor(i/GRID_W);
+  const x=(col-GRID_W/2)*GAP, z=(row-GRID_H/2)*GAP;
+  const isSold=!!soldCubes[i], isFS=isSold&&soldCubes[i].forSale, isEarly=i<EARLY_CUBES&&!isSold;
+  const emColor = isSold?(isFS?0xaa55ff:soldCubes[i].color):(isEarly?0xff4400:0x111122);
+  const mat = new THREE.MeshPhongMaterial({
+    color:emColor, emissive:emColor,
+    emissiveIntensity:isSold?0.15:(isEarly?0.12:0.04),
+    transparent:true, opacity:isSold?0.78:(isEarly?0.3:0.35), shininess:80
+  });
+  const mesh = new THREE.Mesh(geo,mat);
+  mesh.position.set(x,0,z);
+  mesh.userData={index:i,isSold};
+  const ec = isSold?(isFS?0xaa55ff:soldCubes[i].color):(isEarly?0xff6622:0x1a1a3a);
+  mesh.add(new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({color:ec,transparent:true,opacity:isSold?0.7:(isEarly?0.5:0.2)})));
+  cubeGroup.add(mesh); cubes.push(mesh);
+}
+
+// Stars
+const sg=new THREE.BufferGeometry();
+const sp=new Float32Array(6000);
+for(let i=0;i<6000;i++) sp[i]=(Math.random()-0.5)*300;
+sg.setAttribute('position',new THREE.BufferAttribute(sp,3));
+scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:0.14,transparent:true,opacity:0.45})));
+
+// ═══ CONTROLS ═══
+const raycaster = new THREE.Raycaster();
+renderer.domElement.addEventListener('mousedown',e=>{isMouseDown=true;lastMouseX=e.clientX;lastMouseY=e.clientY;});
+window.addEventListener('mouseup',()=>isMouseDown=false);
+window.addEventListener('mousemove',e=>{
+  if(!isMouseDown)return;
+  theta-=(e.clientX-lastMouseX)*0.005;
+  phi=Math.max(0.1,Math.min(1.4,phi+(e.clientY-lastMouseY)*0.005));
+  lastMouseX=e.clientX;lastMouseY=e.clientY;updateCam();
+});
+renderer.domElement.addEventListener('wheel',e=>{radius=Math.max(8,Math.min(100,radius+e.deltaY*0.05));updateCam();});
+renderer.domElement.addEventListener('click',e=>{
+  if(Math.abs(e.clientX-lastMouseX)>5||Math.abs(e.clientY-lastMouseY)>5)return;
+  raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+  const h=raycaster.intersectObjects(cubes);
+  if(!h.length)return;
+  const idx=h[0].object.userData.index;
+  soldCubes[idx]?openAdModal(idx):openBuyModal(idx);
+});
+let ltx=0,lty=0,lpd=0;
+renderer.domElement.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){ltx=e.touches[0].clientX;lty=e.touches[0].clientY;isMouseDown=true;}
+  if(e.touches.length===2)lpd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+});
+renderer.domElement.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&isMouseDown){theta-=(e.touches[0].clientX-ltx)*0.005;phi=Math.max(0.1,Math.min(1.4,phi+(e.touches[0].clientY-lty)*0.005));ltx=e.touches[0].clientX;lty=e.touches[0].clientY;updateCam();}
+  if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);radius=Math.max(8,Math.min(100,radius-(d-lpd)*0.1));lpd=d;updateCam();}
+  e.preventDefault();
+},{passive:false});
+renderer.domElement.addEventListener('touchend',()=>isMouseDown=false);
+
+function updateCam(){
+  camera.position.x=target3.x+radius*Math.sin(phi)*Math.sin(theta);
+  camera.position.y=target3.y+radius*Math.cos(phi);
+  camera.position.z=target3.z+radius*Math.sin(phi)*Math.cos(theta);
+  camera.lookAt(target3);
+}
+
+// ═══ MINIMAP ═══
+const mmCv=document.getElementById('minimapCanvas');
+mmCv.width=110;mmCv.height=110;
+const mmCtx=mmCv.getContext('2d');
+function drawMinimap(){
+  mmCtx.fillStyle='rgba(5,5,15,0.8)';mmCtx.fillRect(0,0,110,110);
+  const cw=110/GRID_W,ch=110/GRID_H;
+  for(let i=0;i<TOTAL_CUBES;i++){
+    const col=i%GRID_W,row=Math.floor(i/GRID_W);
+    if(soldCubes[i]){const c=soldCubes[i].forSale?0xaa55ff:soldCubes[i].color;mmCtx.fillStyle=`rgba(${(c>>16)&255},${(c>>8)&255},${c&255},0.85)`;}
+    else if(i<EARLY_CUBES)mmCtx.fillStyle='rgba(255,80,0,0.4)';
+    else mmCtx.fillStyle='rgba(25,25,55,0.55)';
+    mmCtx.fillRect(col*cw+0.5,row*ch+0.5,cw-1,ch-1);
+  }
+  const cx=((theta/(Math.PI*2))%1+1)%1*110,cy=(phi/Math.PI)*110;
+  mmCtx.strokeStyle='#ffd700';mmCtx.lineWidth=1.5;
+  mmCtx.beginPath();mmCtx.arc(cx,cy,4,0,Math.PI*2);mmCtx.stroke();
+}
+
+// ═══ ANIMATION ═══
+function animate(){
+  requestAnimationFrame(animate);
+  time+=0.008;
+  raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+  const hits=raycaster.intersectObjects(cubes);
+  if(hovered&&hovered!==hits[0]?.object){
+    const idx=hovered.userData.index,isSold=!!soldCubes[idx],isE=idx<EARLY_CUBES&&!isSold;
+    hovered.material.emissiveIntensity=isSold?0.15:(isE?0.12:0.04);
+    hovered.material.opacity=isSold?0.78:(isE?0.3:0.35);
+    hovered.scale.set(1,1,1);hovered=null;
+    const ti=document.getElementById('targetInfo');
+    ti.className='';ti.innerHTML='<div>AIM AT A CUBE</div><div style="font-size:0.52rem;margin-top:0.2rem;color:rgba(255,255,255,0.18)">NAVIGATE TO SELECT</div>';
+  }
+  if(hits.length){
+    const cube=hits[0].object;
+    if(cube!==hovered){
+      hovered=cube;const idx=cube.userData.index;
+      const isSold=!!soldCubes[idx],isEarly=idx<EARLY_CUBES&&!isSold;
+      cube.material.emissiveIntensity=0.65;cube.material.opacity=0.96;cube.scale.set(1.09,1.09,1.09);
+      const ti=document.getElementById('targetInfo');ti.className='active';
+      if(isSold){
+        const d=soldCubes[idx],fs=d.forSale;
+        ti.innerHTML=`<div class="cube-id">CUBE #${String(idx).padStart(3,'0')}</div>
+          <div class="${fs?'cube-status-sale':'cube-status-taken'}">● ${fs?'FOR SALE — $'+d.askPrice.toLocaleString():'OWNED'}</div>
+          <div style="margin-top:0.2rem;font-size:0.72rem;color:white">${d.title}</div>
+          <div style="font-size:0.52rem;color:rgba(255,255,255,0.28)">${fs?'CLICK TO VIEW / BUY':'CLICK TO VIEW AD'}</div>`;
+      } else if(isEarly){
+        ti.innerHTML=`<div class="cube-id">CUBE #${String(idx).padStart(3,'0')}</div>
+          <div class="cube-status-early">🔥 EARLY BIRD — $1</div>
+          <div style="font-size:0.52rem;margin-top:0.2rem;color:rgba(255,150,50,0.5)">NORMALLY $1,000 · CLICK TO CLAIM</div>`;
+      } else {
+        ti.innerHTML=`<div class="cube-id">CUBE #${String(idx).padStart(3,'0')}</div>
+          <div class="cube-status-free">● AVAILABLE — $1,000</div>
+          <div style="font-size:0.52rem;margin-top:0.2rem;color:rgba(255,255,255,0.28)">CLICK TO PURCHASE</div>`;
+      }
+    }
+  }
+  cubes.forEach((cube,i)=>{
+    if(soldCubes[i]){
+      if(cube!==hovered)cube.material.emissiveIntensity=Math.sin(time*1.5+i*0.3)*0.07+(soldCubes[i].forSale?0.25:0.13);
+      cube.rotation.y=time*0.18;
+    } else if(i<EARLY_CUBES){
+      if(cube!==hovered)cube.material.emissiveIntensity=Math.sin(time*2+i*0.5)*0.1+0.12;
+      cube.rotation.y=time*0.1;
+    } else cube.rotation.y=time*0.04;
+  });
+  pl1.position.x=Math.sin(time*0.3)*30;pl1.position.z=Math.cos(time*0.3)*30;
+  renderer.render(scene,camera);drawMinimap();
+}
+animate();
+
+// ═══ HELPERS ═══
+function earlyLeft(){return Math.max(0,EARLY_CUBES-Object.values(soldCubes).filter(c=>c.paidPrice===EARLY_PRICE).length);}
+function isEarlyBird(idx){return idx!==null&&idx<EARLY_CUBES&&!soldCubes[idx]&&earlyLeft()>0;}
+function getPrice(idx){return isEarlyBird(idx)?EARLY_PRICE:NORMAL_PRICE;}
+function updateCubeVisual(idx){
+  const d=soldCubes[idx];if(!d)return;
+  const c=d.forSale?0xaa55ff:d.color;
+  const cube=cubes[idx];
+  cube.material.color.setHex(c);cube.material.emissive.setHex(c);cube.material.opacity=0.78;
+  cube.children[0].material.color.setHex(c);cube.children[0].material.opacity=0.7;
+  cube.userData.isSold=true;
+}
+function updateStats(){
+  const sold=Object.keys(soldCubes).length;
+  const raised=Object.values(soldCubes).reduce((s,c)=>s+c.paidPrice,0);
+  document.getElementById('soldCount').textContent=sold;
+  document.getElementById('raisedAmount').textContent='$'+raised.toLocaleString();
+  document.getElementById('availCount').textContent=TOTAL_CUBES-sold;
+  document.getElementById('progFill').style.width=(sold/TOTAL_CUBES*100)+'%';
+  document.getElementById('progText').textContent='$'+raised.toLocaleString()+' / $1,000,000';
+  const el=earlyLeft();
+  document.getElementById('earlyLeft').textContent=el;
+  document.getElementById('splashEarlyLeft').textContent=el;
+  if(el===0){document.getElementById('earlyBanner').classList.add('hidden');document.getElementById('earlyPill').style.display='none';}
+}
+updateStats();
+
+// ═══ BUY MODAL ═══
+function openBuyModal(idx){
+  selectedCube=idx;
+  const early=isEarlyBird(idx);
+  document.getElementById('modalCubeNum').textContent=idx!==null?`CUBE #${String(idx).padStart(3,'0')} · ${early?'🔥 EARLY BIRD · ':''}ONE-TIME · NON-REFUNDABLE`:'ANY AVAILABLE CUBE · $1,000 EACH';
+  document.getElementById('earlyNotice').style.display=early?'block':'none';
+  document.getElementById('priceOld').style.display=early?'inline':'none';
+  document.getElementById('priceDisplay').textContent=early?'$1 USD':'$1,000 USD';
+  document.getElementById('priceDisplay').className='price-amount'+(early?' orange':'');
+  document.getElementById('priceBox').className='price-box'+(early?' early-bg':'');
+  document.getElementById('buySubmitBtn').className='btn-primary'+(early?' orange':'');
+  document.getElementById('walletSub').textContent=early?'Pay $1 USD in crypto':'Pay $1,000 USD in crypto';
+  showBuyStep('formStep');
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');clearInterval(countdownInterval);}
+function showBuyStep(id){['formStep','walletStep','paymentStep','successStep'].forEach(s=>document.getElementById(s).style.display=s===id?'block':'none');}
+function goToWallet(){
+  if(!document.getElementById('adTitle').value.trim()){showToast('Please enter an ad title');return;}
+  if(!document.getElementById('adUrl').value.trim()){showToast('Please enter your URL');return;}
+  showBuyStep('walletStep');
+}
+function backToForm(){showBuyStep('formStep');}
+function backToWallet(){showBuyStep('walletStep');clearInterval(countdownInterval);}
+
+const chainData={
+  ETH:{label:'✦ ETHEREUM PAYMENT',amount:'≈ 0.41 ETH',addr:'0x742d35Cc6634C0532925a3b8D4C9E4B9B2C1A2B3'},
+  BTC:{label:'✦ BITCOIN PAYMENT',amount:'≈ 0.0162 BTC',addr:'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'},
+  SOL:{label:'✦ SOLANA PAYMENT',amount:'≈ 14.8 SOL',addr:'7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs'},
+  BNB:{label:'✦ BNB CHAIN PAYMENT',amount:'≈ 1.89 BNB',addr:'bnb1grpf0955h0ykzq3ar5nmum7y6gdfl6lxfn46h2'},
+};
+
+function goToPayment(chain){
+  currentChain=chain;
+  const early=isEarlyBird(selectedCube);
+  const d=chainData[chain];
+  document.getElementById('payChain').textContent=d.label;
+  document.getElementById('payAmountDisplay').innerHTML=`<span>${early?'≈ very small amount (DEMO $1)':d.amount}</span>`;
+  document.getElementById('payAddress').textContent=d.addr;
+  showBuyStep('paymentStep');startCountdown(900);
+}
+function startCountdown(s){
+  clearInterval(countdownInterval);let r=s;
+  const el=document.getElementById('countdown');
+  countdownInterval=setInterval(()=>{r--;el.textContent=`${String(Math.floor(r/60)).padStart(2,'0')}:${String(r%60).padStart(2,'0')}`;if(r<=0){clearInterval(countdownInterval);el.textContent='EXPIRED';}},1000);
+}
+function copyAddress(){navigator.clipboard.writeText(document.getElementById('payAddress').textContent).catch(()=>{});showToast('Address copied!');}
+function simulatePayment(){
+  clearInterval(countdownInterval);
+  const title=document.getElementById('adTitle').value;
+  const desc=document.getElementById('adDesc').value;
+  const url=document.getElementById('adUrl').value;
+  const colorInt=parseInt(document.getElementById('adColor').value.replace('#',''),16);
+  let cubeIdx=selectedCube;
+  if(cubeIdx===null||soldCubes[cubeIdx])for(let i=0;i<TOTAL_CUBES;i++)if(!soldCubes[i]){cubeIdx=i;break;}
+  if(cubeIdx!==null&&!soldCubes[cubeIdx]){
+    const price=getPrice(cubeIdx);
+    soldCubes[cubeIdx]={id:cubeIdx,title,desc,url,color:colorInt,paidPrice:price,wallet:chainData[currentChain].addr.slice(0,10)+'...',forSale:false,askPrice:null,contact:null};
+    updateCubeVisual(cubeIdx);updateStats();drawMinimap();
+  }
+  showBuyStep('successStep');document.getElementById('successStep').style.display='block';
+}
+
+// ═══ AD MODAL ═══
+function openAdModal(idx){
+  const data=soldCubes[idx];if(!data)return;
+  viewingCube=idx;
+  const fs=data.forSale;
+  document.getElementById('adBox').className='ad-box'+(fs?' for-sale-box':'');
+  document.getElementById('adCubeNum').textContent=`CUBE #${String(idx).padStart(3,'0')} · CLAIMED · PAID $${data.paidPrice}`;
+  document.getElementById('forSaleBadge').style.display=fs?'inline-block':'none';
+  document.getElementById('adTitle2').textContent=data.title;
+  document.getElementById('adDesc2').textContent=data.desc||'No description.';
+  document.getElementById('adLink').href=data.url;
+  document.getElementById('adLink').textContent='→ '+(data.url.replace(/https?:\/\//,'')).slice(0,40);
+  document.getElementById('adOwner').textContent=`OWNER: ${data.wallet} · PAID $${data.paidPrice} · PERMANENT`;
+  document.getElementById('forSalePriceRow').style.display=fs?'block':'none';
+  if(fs)document.getElementById('forSalePrice').textContent='$'+data.askPrice.toLocaleString()+' USD';
+  document.getElementById('adBuyBtns').style.display=fs?'block':'none';
+  // Resell area — show for all owned cubes (in production would check ownership)
+  document.getElementById('adResellArea').style.display='block';
+  document.getElementById('listForSaleBtn').style.display=fs?'none':'inline-block';
+  document.getElementById('cancelListingBtn').style.display=fs?'inline-block':'none';
+  document.getElementById('adModal').classList.add('open');
+}
+function closeAdModal(){document.getElementById('adModal').classList.remove('open');viewingCube=null;}
+function buyResaleFromModal(){
+  if(viewingCube===null||!soldCubes[viewingCube])return;
+  const d=soldCubes[viewingCube];
+  closeAdModal();
+  showToast(`📨 Contact seller: ${d.contact||'not provided'}`);
+}
+
+// ═══ RESELL MODAL ═══
+function openResellFromAd(){
+  if(viewingCube===null)return;
+  resellTarget=viewingCube;
+  closeAdModal();
+  const data=soldCubes[resellTarget];
+  document.getElementById('resellCubeLabel').textContent=`CUBE #${String(resellTarget).padStart(3,'0')} · SET YOUR ASKING PRICE`;
+  document.getElementById('resellAdPreview').textContent=data.title;
+  document.getElementById('resellPaidLabel').textContent=`Originally paid $${data.paidPrice} — list higher to profit`;
+  document.getElementById('resellPrice').value='';
+  document.getElementById('resellContact').value=data.contact||'';
+  document.getElementById('resellPricePreview').textContent='$— USD';
+  document.getElementById('resellFormStep').style.display='block';
+  document.getElementById('resellSuccessStep').style.display='none';
+  document.getElementById('resellModal').classList.add('open');
+}
+function closeResellModal(){document.getElementById('resellModal').classList.remove('open');}
+function updateResellPreview(){
+  const v=parseFloat(document.getElementById('resellPrice').value);
+  document.getElementById('resellPricePreview').textContent=isNaN(v)?'$— USD':'$'+v.toLocaleString()+' USD';
+}
+function submitResellListing(){
+  const price=parseFloat(document.getElementById('resellPrice').value);
+  const contact=document.getElementById('resellContact').value.trim();
+  if(isNaN(price)||price<1){showToast('Please enter a valid price');return;}
+  if(!contact){showToast('Please enter your contact info');return;}
+  soldCubes[resellTarget].forSale=true;
+  soldCubes[resellTarget].askPrice=price;
+  soldCubes[resellTarget].contact=contact;
+  updateCubeVisual(resellTarget);
+  drawMinimap();
+  document.getElementById('resellFormStep').style.display='none';
+  document.getElementById('resellSuccessStep').style.display='block';
+}
+function cancelListing(){
+  if(viewingCube===null)return;
+  soldCubes[viewingCube].forSale=false;soldCubes[viewingCube].askPrice=null;
+  updateCubeVisual(viewingCube);drawMinimap();
+  closeAdModal();showToast(`Cube #${String(viewingCube).padStart(3,'0')} delisted`);
+}
+
+// ═══ MARKETPLACE ═══
+function openMarket(){
+  const listings=Object.values(soldCubes).filter(c=>c.forSale);
+  document.getElementById('marketGrid').innerHTML=listings.length
+    ? listings.map(c=>`<div class="market-card" onclick="closeMarket();openAdModal(${c.id})">
+        <div class="mc-num">CUBE #${String(c.id).padStart(3,'0')}</div>
+        <div class="mc-title">${c.title}</div>
+        <div class="mc-price">$${c.askPrice.toLocaleString()}</div>
+        <div class="mc-original">Paid $${c.paidPrice.toLocaleString()}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.48rem;color:rgba(255,255,255,0.18);margin-top:0.2rem">${c.url.replace(/https?:\/\//,'').slice(0,28)}</div>
+      </div>`).join('')
+    : '<div class="market-empty">NO CUBES FOR SALE YET<br><br>Own a cube? List it for resale!</div>';
+  document.getElementById('marketModal').classList.add('open');
+}
+function closeMarket(){document.getElementById('marketModal').classList.remove('open');}
+
+// ═══ CLOSE HANDLERS ═══
+['adModal','modalOverlay','resellModal','marketModal'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('click',e=>{
+    if(e.target===el){
+      if(id==='adModal')closeAdModal();
+      else if(id==='modalOverlay')closeModal();
+      else if(id==='resellModal')closeResellModal();
+      else closeMarket();
+    }
+  });
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAdModal();closeResellModal();closeMarket();}});
+
+// ═══ TOAST ═══
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+
+// ═══ SPLASH ═══
+function enterWorld(){document.getElementById('splash').classList.add('hide');setTimeout(()=>document.getElementById('splash').remove(),800);}
+
+// ═══ RESIZE ═══
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+updateCam();
+</script>
+</body>
+</html>
