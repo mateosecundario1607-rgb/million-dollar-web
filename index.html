@@ -407,9 +407,9 @@
 //  CONFIG — Reemplazá estos 3 valores
 // ════════════════════════════════════
 const CFG = {
-  SUPABASE_URL:      'https://ehaqzpkgkypkwksrmike.supabase.co',  // ← Paso 2
-  SUPABASE_ANON:     'sb_publishable_o3geeg6QtbpfNsXkF0xTDg_WQhvhHuL',             // ← Paso 2
-  CLOUDINARY_URL:    'https://api.cloudinary.com/v1_1/dq7gncwco/image/upload', // ← Paso 3
+  SUPABASE_URL:      'https://TU_PROYECTO.supabase.co',  // ← Paso 2
+  SUPABASE_ANON:     'TU_SUPABASE_ANON_KEY',             // ← Paso 2
+  CLOUDINARY_URL:    'https://api.cloudinary.com/v1_1/TU_CLOUD_NAME/image/upload', // ← Paso 3
   CLOUDINARY_PRESET: 'million_dollar_web',               // ← Paso 3
   EARLY_CUBES: 15, EARLY_PRICE: 1, NORMAL_PRICE: 1000, TOTAL: 1000,
 };
@@ -614,7 +614,6 @@ renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(deviceP
 document.body.insertBefore(renderer.domElement,document.body.firstChild);
 scene.add(new THREE.AmbientLight(0x111122,0.5));
 const pl1=new THREE.PointLight(0xffd700,1.5,80);pl1.position.set(0,20,0);scene.add(pl1);
-scene.add(Object.assign(new THREE.PointLight(0x0044ff,0.8,80),{position:{set(x,y,z){this.x=x;this.y=y;this.z=z;}}}));
 const pl2=new THREE.PointLight(0x0044ff,0.8,80);pl2.position.set(-30,-10,20);scene.add(pl2);
 scene.add(new THREE.GridHelper(120,40,0x111133,0x0a0a22)).position.y=-4;
 const geo=new THREE.BoxGeometry(CS,CS,CS),edgeGeo=new THREE.EdgesGeometry(geo);
