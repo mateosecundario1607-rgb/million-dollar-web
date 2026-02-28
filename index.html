@@ -612,19 +612,20 @@ camera.position.set(0,15,55);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 document.body.insertBefore(renderer.domElement,document.body.firstChild);
-scene.add(new THREE.AmbientLight(0x111122,0.5));
-const pl1=new THREE.PointLight(0xffd700,1.5,80);pl1.position.set(0,20,0);scene.add(pl1);
-const pl2=new THREE.PointLight(0x0044ff,0.8,80);pl2.position.set(-30,-10,20);scene.add(pl2);
+scene.add(new THREE.AmbientLight(0x222233,1.2));
+const pl1=new THREE.PointLight(0xffd700,2.5,120);pl1.position.set(0,25,0);scene.add(pl1);
+const pl2=new THREE.PointLight(0x4466ff,1.2,100);pl2.position.set(-30,-10,20);scene.add(pl2);
+const pl3=new THREE.PointLight(0xffffff,1.0,100);pl3.position.set(30,10,-20);scene.add(pl3);
 scene.add(new THREE.GridHelper(120,40,0x111133,0x0a0a22)).position.y=-4;
 const geo=new THREE.BoxGeometry(CS,CS,CS),edgeGeo=new THREE.EdgesGeometry(geo);
 const cubes=[];
 for(let i=0;i<CFG.TOTAL;i++){
   const col=i%GW,row=Math.floor(i/GW),isE=i<CFG.EARLY_CUBES;
-  const mat=new THREE.MeshPhongMaterial({color:isE?0x331100:0x0a0a15,emissive:isE?0xff4400:0x111122,emissiveIntensity:isE?0.1:0.04,transparent:true,opacity:isE?0.3:0.35,shininess:80});
+  const mat=new THREE.MeshPhongMaterial({color:isE?0x552200:0x1a1a2e,emissive:isE?0xff4400:0x2233aa,emissiveIntensity:isE?0.25:0.12,transparent:true,opacity:isE?0.6:0.55,shininess:120});
   const m=new THREE.Mesh(geo,mat);
   m.position.set((col-GW/2)*GAP,0,(row-GH/2)*GAP);
   m.userData={index:i,isSold:false};
-  m.add(new THREE.LineSegments(edgeGeo,new THREE.LineBasicMaterial({color:isE?0xff6622:0x1a1a3a,transparent:true,opacity:isE?0.45:0.18})));
+  m.add(new THREE.LineSegments(edgeGeo,new THREE.LineBasicMaterial({color:isE?0xff8844:0x4455ff,transparent:true,opacity:isE?0.8:0.45})));
   scene.add(m);cubes.push(m);
 }
 const sg=new THREE.BufferGeometry(),sp=new Float32Array(6000);
