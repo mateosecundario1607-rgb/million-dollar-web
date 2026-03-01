@@ -1,7 +1,4 @@
 // api/create-payment.js
-// Vercel Serverless Function
-// Crea un pago en NOWPayments y devuelve la URL de pago
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -16,7 +13,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'title and url are required' });
   }
 
-  // Verificar que el cubo esté disponible en Supabase
   const supabaseCheck = await fetch(
     `${process.env.SUPABASE_URL}/rest/v1/cubes?id=eq.${cubeId}&select=id`,
     {
@@ -31,11 +27,9 @@ export default async function handler(req, res) {
     return res.status(409).json({ error: 'Cube already taken' });
   }
 
-  // Precio: $1 early bird, $1000 normal
-  const price = cubeId < 15 ? 1 : 1000;
+  const price   = cubeId < 15 ? 1 : 1000;
   const orderId = `cube_${cubeId}_${Date.now()}`;
 
-  // Crear invoice en NOWPayments
   const nowRes = await fetch('https://api.nowpayments.io/v1/invoice', {
     method: 'POST',
     headers: {
@@ -47,8 +41,6 @@ export default async function handler(req, res) {
       price_currency:    'usd',
       order_id:          orderId,
       order_description: `The Million Dollar Web — Cube #${String(cubeId).padStart(3,'0')}`,
-      success_url:       `${process.env.VERCEL_URL}/?success=1&cube=${cubeId}`,
-      cancel_url:        `${process.env.VERCEL_URL}/?cancelled=1`,
     })
   });
 
@@ -60,7 +52,6 @@ export default async function handler(req, res) {
 
   const payment = await nowRes.json();
 
-  // Guardar cubo como pending en Supabase (reservado 30 min)
   await fetch(`${process.env.SUPABASE_URL}/rest/v1/pending_cubes`, {
     method: 'POST',
     headers: {
