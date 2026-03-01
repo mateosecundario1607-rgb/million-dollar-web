@@ -3,14 +3,12 @@
 // Crea un pago en NOWPayments y devuelve la URL de pago
 
 export default async function handler(req, res) {
-  // Solo aceptar POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { cubeId, title, description, url, imageUrl, color } = req.body;
 
-  // Validaciones básicas
   if (cubeId === undefined || cubeId === null) {
     return res.status(400).json({ error: 'cubeId is required' });
   }
@@ -33,41 +31,36 @@ export default async function handler(req, res) {
     return res.status(409).json({ error: 'Cube already taken' });
   }
 
-  // Determinar precio: $1 los primeros 15 cubos, $1000 el resto
+  // Precio: $1 early bird, $1000 normal
   const price = cubeId < 15 ? 1 : 1000;
+  const orderId = `cube_${cubeId}_${Date.now()}`;
 
-  // Crear pago en NOWPayments
+  // Crear invoice en NOWPayments
   const nowRes = await fetch('https://api.nowpayments.io/v1/invoice', {
     method: 'POST',
     headers: {
-      'x-api-key':   process.env.NOWPAYMENTS_API_KEY,
+      'x-api-key':    process.env.NOWPAYMENTS_API_KEY,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      price_amount:    price,
-      price_currency:  'usd',
-      pay_currency:    'usdtsol',   // USDT en Solana (sin gas fees)
-      order_id:        `cube_${cubeId}_${Date.now()}`,
+      price_amount:      price,
+      price_currency:    'usd',
+      order_id:          orderId,
       order_description: `The Million Dollar Web — Cube #${String(cubeId).padStart(3,'0')}`,
-      ipn_callback_url: `${process.env.VERCEL_URL}/api/webhook`,
-      success_url:     `${process.env.VERCEL_URL}/?success=1&cube=${cubeId}`,
-      cancel_url:      `${process.env.VERCEL_URL}/?cancelled=1`,
-      // Guardamos los datos del cubo en los metadatos
-      // para usarlos cuando llegue el webhook
-      partially_paid_url: `${process.env.VERCEL_URL}/?partial=1`,
+      success_url:       `${process.env.VERCEL_URL}/?success=1&cube=${cubeId}`,
+      cancel_url:        `${process.env.VERCEL_URL}/?cancelled=1`,
     })
   });
 
   if (!nowRes.ok) {
     const err = await nowRes.text();
     console.error('NOWPayments error:', err);
-    return res.status(500).json({ error: 'Payment creation failed' });
+    return res.status(500).json({ error: 'Payment creation failed', detail: err });
   }
 
   const payment = await nowRes.json();
 
-  // Guardar datos del cubo en Supabase como "pending"
-  // para que nadie más pueda comprarlo mientras está en proceso
+  // Guardar cubo como pending en Supabase (reservado 30 min)
   await fetch(`${process.env.SUPABASE_URL}/rest/v1/pending_cubes`, {
     method: 'POST',
     headers: {
@@ -78,14 +71,14 @@ export default async function handler(req, res) {
     },
     body: JSON.stringify({
       cube_id:     cubeId,
-      order_id:    payment.id.toString(),
+      order_id:    orderId,
       title,
       description: description || '',
       url,
       image_url:   imageUrl || null,
       color:       color || '#ffd700',
       paid_price:  price,
-      expires_at:  new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
+      expires_at:  new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     })
   });
 
