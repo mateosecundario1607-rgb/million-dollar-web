@@ -346,6 +346,7 @@
     </div>
     <a class="ad-link" id="adLink" href="#" target="_blank">→ VISIT WEBSITE</a>
     <div id="adActions" style="margin-top:0.9rem">
+      <button class="btn btn-purple" id="btnBuy" style="display:none;font-size:0.62rem" onclick="buyResale()">💰 Buy This Cube</button>
       <button class="btn btn-purple" id="btnList" style="display:none;font-size:0.62rem" onclick="openResellFromAd()">🏪 List This Cube for Resale</button>
       <button class="btn btn-danger" id="btnCancel" style="display:none" onclick="cancelListing()">✕ Cancel My Listing</button>
     </div>
@@ -765,6 +766,7 @@ function openAdModal(idx){
   document.getElementById('salePriceRow').style.display=fs?'block':'none';
   if(fs){document.getElementById('salePrice').textContent='$'+d.askPrice?.toLocaleString()+' USD';document.getElementById('saleContact').textContent='CONTACT: '+d.contact;}
   // Buttons — in production check wallet ownership. Here show both for demo.
+  document.getElementById('btnBuy').style.display=fs?'block':'none';
   document.getElementById('btnList').style.display=!fs?'block':'none';
   document.getElementById('btnCancel').style.display=fs?'block':'none';
   document.getElementById('adModal').classList.add('open');
@@ -774,6 +776,26 @@ function closeAdModal(){document.getElementById('adModal').classList.remove('ope
 // ════════════════════════════════════
 //  RESELL
 // ════════════════════════════════════
+async function buyResale(){
+  if(viewCube===null)return;
+  const d=soldCubes[viewCube];
+  if(!d||!d.forSale)return;
+  try{
+    showToast('Creating payment...');
+    const res=await fetch('/api/create-resale-payment',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cubeId:viewCube})
+    });
+    if(!res.ok){const e=await res.json();throw new Error(e.error);}
+    const {invoiceUrl,askPrice}=await res.json();
+    closeAdModal();
+    window.open(invoiceUrl,'_blank');
+    showToast(`Payment page opened — $${askPrice} total`);
+  }catch(e){
+    showToast('Error: '+e.message);
+  }
+}
 function openResellFromAd(){
   if(viewCube===null)return;resellTarget=viewCube;closeAdModal();
   const d=soldCubes[resellTarget];
