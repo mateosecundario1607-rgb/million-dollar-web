@@ -221,6 +221,9 @@
   <div style="display:flex;gap:0.5rem">
     <button class="nav-btn market" onclick="openMarket()">🏪 Marketplace</button>
     <button class="nav-btn" onclick="openBuyModal(null)">Buy a Cube</button>
+    <div id="walletArea">
+      <button class="nav-btn" id="connectWalletBtn" onclick="connectWallet()" style="border-color:rgba(0,255,136,0.3);color:#00ff88;">🔗 Connect Wallet</button>
+    </div>
   </div>
 </div>
 
@@ -421,6 +424,7 @@ const CFG = {
 const soldCubes = {};
 let selCube = null, viewCube = null, resellTarget = null;
 let selImage = null;
+let connectedWallet = null;
 let time=0, hovered=null, isDown=false, moved=false;
 let lastX=0, lastY=0, theta=0.3, phi=0.6, radius=55;
 const tgt3 = new THREE.Vector3();
@@ -476,6 +480,48 @@ async function supabasePatch(id, body) {
     headers:{'apikey':CFG.SUPABASE_ANON,'Authorization':`Bearer ${CFG.SUPABASE_ANON}`,'Content-Type':'application/json'},
     body: JSON.stringify(body)
   });
+}
+
+// ════════════════════════════════════
+//  WALLET
+// ════════════════════════════════════
+async function connectWallet() {
+  // Phantom
+  const provider = window.phantom?.solana || window.solana;
+  if (provider && provider.isPhantom) {
+    try {
+      const resp = await provider.connect();
+      connectedWallet = resp.publicKey.toString();
+      updateWalletUI();
+      showToast('✓ Phantom wallet connected!');
+      return;
+    } catch(e) { showToast('Wallet connection cancelled'); return; }
+  }
+  // MetaMask / EVM
+  if (window.ethereum) {
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      connectedWallet = accounts[0];
+      updateWalletUI();
+      showToast('✓ MetaMask connected!');
+      return;
+    } catch(e) { showToast('Wallet connection cancelled'); return; }
+  }
+  // Ninguna wallet instalada
+  showToast('Please install Phantom or MetaMask first');
+  window.open('https://phantom.app/', '_blank');
+}
+
+function updateWalletUI() {
+  if (!connectedWallet) return;
+  const short = connectedWallet.slice(0,4)+'...'+connectedWallet.slice(-4);
+  document.getElementById('walletArea').innerHTML =
+    `<div style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:#00ff88;border:1px solid rgba(0,255,136,0.3);padding:0.4rem 0.8rem;">✓ ${short}</div>`;
+}
+
+function isOwner(cube) {
+  if (!connectedWallet || !cube) return false;
+  return cube.wallet && cube.wallet.toLowerCase() === connectedWallet.toLowerCase();
 }
 
 // ════════════════════════════════════
@@ -765,10 +811,16 @@ function openAdModal(idx){
   document.getElementById('adOwner').textContent=`OWNER: ${d.wallet||'—'}`;
   document.getElementById('salePriceRow').style.display=fs?'block':'none';
   if(fs){document.getElementById('salePrice').textContent='$'+d.askPrice?.toLocaleString()+' USD';document.getElementById('saleContact').textContent='CONTACT: '+d.contact;}
-  // Buttons — in production check wallet ownership. Here show both for demo.
-  document.getElementById('btnBuy').style.display=fs?'block':'none';
-  document.getElementById('btnList').style.display=!fs?'block':'none';
-  document.getElementById('btnCancel').style.display=fs?'block':'none';
+  // Mostrar botones solo si el dueño tiene su wallet conectada
+  const owner = isOwner(d);
+  document.getElementById('btnBuy').style.display    = fs && !owner ? 'block' : 'none';
+  document.getElementById('btnList').style.display   = !fs && owner ? 'block' : 'none';
+  document.getElementById('btnCancel').style.display = fs && owner  ? 'block' : 'none';
+  // Si no hay wallet conectada y el cubo es propio, mostrar hint
+  const actionsDiv = document.getElementById('adActions');
+  if (!connectedWallet && !fs) {
+    actionsDiv.innerHTML += `<div style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;color:rgba(255,255,255,0.2);margin-top:0.5rem">Connect your wallet to manage this cube</div>`;
+  }
   document.getElementById('adModal').classList.add('open');
 }
 function closeAdModal(){document.getElementById('adModal').classList.remove('open');viewCube=null;}
