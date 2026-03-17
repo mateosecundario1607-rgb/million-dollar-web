@@ -1,68 +1,51 @@
-// middleware.js — Rate limiting para todas las rutas /api/
-// Vercel ejecuta este archivo automáticamente antes de cada función
+// middleware.js — Rate limiting sin Next.js
+export default function middleware(request) {
+  const { pathname } = new URL(request.url);
 
-import { NextResponse } from 'next/server';
-
-// Almacén en memoria de requests por IP
-// Se resetea cada vez que Vercel reinicia la función (cada ~5 min)
-const rateLimit = new Map();
-
-const LIMITS = {
-  '/api/create-payment':        { max: 5,  window: 60 },  // 5 por minuto
-  '/api/create-resale-payment': { max: 5,  window: 60 },  // 5 por minuto
-  '/api/webhook':               { max: 50, window: 60 },  // 50 por minuto (NOWPayments)
-  'default':                    { max: 20, window: 60 },  // 20 por minuto resto
-};
-
-export function middleware(request) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-          || request.headers.get('x-real-ip')
-          || 'unknown';
-
-  const path     = request.nextUrl.pathname;
-  const limit    = LIMITS[path] || LIMITS['default'];
-  const key      = `${ip}:${path}`;
-  const now      = Date.now();
-  const windowMs = limit.window * 1000;
-
-  // Limpiar entradas viejas
-  for (const [k, v] of rateLimit.entries()) {
-    if (now - v.start > windowMs) rateLimit.delete(k);
+  // Solo aplicar a rutas /api/
+  if (!pathname.startsWith('/api/')) {
+    return new Response(null, { status: 200 });
   }
 
-  const current = rateLimit.get(key);
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
 
-  if (!current) {
-    rateLimit.set(key, { count: 1, start: now });
-  } else if (now - current.start < windowMs) {
-    if (current.count >= limit.max) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
-        {
-          status: 429,
-          headers: {
-            'Content-Type': 'application/json',
-            'Retry-After': String(limit.window),
-            'X-RateLimit-Limit': String(limit.max),
-            'X-RateLimit-Remaining': '0',
-          }
-        }
+  const LIMITS = {
+    '/api/create-payment':        5,
+    '/api/create-resale-payment': 5,
+    '/api/webhook':               50,
+  };
+
+  const max = LIMITS[pathname] || 20;
+  const key = `${ip}:${pathname}`;
+  const now = Date.now();
+
+  if (!globalThis._rl) globalThis._rl = new Map();
+  const rl = globalThis._rl;
+
+  // Limpiar viejos
+  for (const [k, v] of rl.entries()) {
+    if (now - v.start > 60000) rl.delete(k);
+  }
+
+  const entry = rl.get(key);
+  if (!entry) {
+    rl.set(key, { count: 1, start: now });
+  } else if (now - entry.start < 60000) {
+    if (entry.count >= max) {
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Try again later.' }),
+        { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } }
       );
     }
-    current.count++;
+    entry.count++;
   } else {
-    rateLimit.set(key, { count: 1, start: now });
+    rl.set(key, { count: 1, start: now });
   }
 
-  // Agregar headers de seguridad a todas las respuestas
-  const response = NextResponse.next();
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-  return response;
+  return new Response(null, { status: 200 });
 }
 
 export const config = {
   matcher: '/api/:path*',
+  runtime: 'edge',
 };
