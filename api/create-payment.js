@@ -1,18 +1,37 @@
 // api/create-payment.js
 export default async function handler(req, res) {
+  // Solo POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verificar origen — solo aceptar requests de tu dominio
+  const origin = req.headers['origin'] || '';
+  const allowed = [
+    'https://million-dollar-web-nine.vercel.app',
+    'http://localhost:3000', // para desarrollo local
+  ];
+  if (!allowed.includes(origin)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   const { cubeId, title, description, url, imageUrl, color } = req.body;
 
+  // Validaciones
   if (cubeId === undefined || cubeId === null) {
     return res.status(400).json({ error: 'cubeId is required' });
   }
-  if (!title || !url) {
-    return res.status(400).json({ error: 'title and url are required' });
+  if (!title || typeof title !== 'string' || title.length > 40) {
+    return res.status(400).json({ error: 'Invalid title' });
+  }
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+  if (typeof cubeId !== 'number' || cubeId < 0 || cubeId >= 1000) {
+    return res.status(400).json({ error: 'Invalid cubeId' });
   }
 
+  // Verificar que el cubo esté disponible
   const supabaseCheck = await fetch(
     `${process.env.SUPABASE_URL}/rest/v1/cubes?id=eq.${cubeId}&select=id`,
     {
@@ -25,6 +44,21 @@ export default async function handler(req, res) {
   const existing = await supabaseCheck.json();
   if (existing.length > 0) {
     return res.status(409).json({ error: 'Cube already taken' });
+  }
+
+  // Verificar que no haya un pending reciente para este cubo (anti-spam)
+  const pendingCheck = await fetch(
+    `${process.env.SUPABASE_URL}/rest/v1/pending_cubes?cube_id=eq.${cubeId}&select=id`,
+    {
+      headers: {
+        'apikey':        process.env.SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      }
+    }
+  );
+  const existingPending = await pendingCheck.json();
+  if (existingPending.length > 0) {
+    return res.status(409).json({ error: 'Cube is being purchased by someone else' });
   }
 
   const price   = cubeId < 15 ? 1 : 1000;
@@ -47,7 +81,7 @@ export default async function handler(req, res) {
   if (!nowRes.ok) {
     const err = await nowRes.text();
     console.error('NOWPayments error:', err);
-    return res.status(500).json({ error: 'Payment creation failed', detail: err });
+    return res.status(500).json({ error: 'Payment creation failed' });
   }
 
   const payment = await nowRes.json();
@@ -63,15 +97,18 @@ export default async function handler(req, res) {
     body: JSON.stringify({
       cube_id:     cubeId,
       order_id:    orderId,
-      title,
-      description: description || '',
-      url,
+      title:       title.slice(0, 40),
+      description: (description || '').slice(0, 120),
+      url:         url.slice(0, 200),
       image_url:   imageUrl || null,
-      color:       color || '#ffd700',
+      color:       /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#ffd700',
       paid_price:  price,
       expires_at:  new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     })
   });
+
+  // Headers de seguridad
+  res.setHeader('X-Content-Type-Options', 'nosniff');
 
   return res.status(200).json({
     invoiceUrl: payment.invoice_url,
