@@ -583,11 +583,16 @@ function openBuyModal(idx){
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open');}
 function showStep(id){['formStep','payStep','successStep'].forEach(s=>{document.getElementById(s).style.display=s===id?'block':'none';});}
 
+let lastPayAttempt=0;
 async function goToPay(){
+  // Anti-spam: 30 segundo cooldown entre intentos
+  const now=Date.now();
+  if(now-lastPayAttempt<30000){showToast('Please wait '+Math.ceil((30000-(now-lastPayAttempt))/1000)+'s before trying again');return;}
   const title=document.getElementById('adTitle').value.trim();
   const url=document.getElementById('adUrl').value.trim();
   if(!title){showToast('Please enter an ad title');return;}
   if(!url){showToast('Please enter your URL');return;}
+  if(!url.startsWith('http')){showToast('URL must start with https://');return;}
 
   document.getElementById('buyBtn').textContent='Processing...';
   document.getElementById('buyBtn').disabled=true;
@@ -626,6 +631,7 @@ async function goToPay(){
     }
 
     const {invoiceUrl} = await res.json();
+    lastPayAttempt=Date.now();
 
     // Open NOWPayments page
     document.getElementById('payNowLink').href=invoiceUrl;
