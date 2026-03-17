@@ -378,6 +378,11 @@
         <label class="form-label">Your Contact (shown to buyers) *</label>
         <input class="form-input" id="resellContact" placeholder="Telegram @handle, email, or wallet">
       </div>
+      <div class="form-group">
+        <label class="form-label">Your Payout Wallet *</label>
+        <input class="form-input" id="resellWallet" placeholder="Your wallet address to receive payment">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.48rem;color:rgba(255,255,255,0.18);margin-top:0.2rem">SOL, ETH, BTC — you'll receive 98.5% of the sale</div>
+      </div>
       <div class="price-box purple-bg">
         <div><div class="price-label">LISTING PRICE</div><div class="price-note">1.5% platform fee charged on sale</div></div>
         <div class="price-amount purple" id="resellPriceShow">$—</div>
@@ -867,8 +872,10 @@ async function submitListing(){
   const contact=document.getElementById('resellContact').value.trim();
   if(isNaN(price)||price<1){showToast('Please enter a valid price');return;}
   if(!contact){showToast('Please enter your contact');return;}
+  const wallet=document.getElementById('resellWallet').value.trim();
+  if(!wallet){showToast('Please enter your payout wallet');return;}
   soldCubes[resellTarget].forSale=true;soldCubes[resellTarget].askPrice=price;soldCubes[resellTarget].contact=contact;
-  try{await supabasePatch(resellTarget,{for_sale:true,ask_price:price,contact});}catch(e){console.warn(e);}
+  try{await supabasePatch(resellTarget,{for_sale:true,ask_price:price,contact,owner_wallet:wallet});}catch(e){console.warn(e);}
   updateCubeVisual(resellTarget);drawMinimap();
   document.getElementById('resellForm').style.display='none';
   document.getElementById('resellSuccess').style.display='block';
