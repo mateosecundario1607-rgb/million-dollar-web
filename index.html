@@ -709,7 +709,33 @@ renderer.domElement.addEventListener('click',e=>{
   const idx=h[0].object.userData.index;
   soldCubes[idx]?openAdModal(idx):openBuyModal(idx);
 });
-renderer.domElement.addEventListener('wheel',e=>{radius=Math.max(8,Math.min(100,radius+e.deltaY*0.05));updateCam();},{passive:true});
+let targetRadius=55;
+const tgtSmooth=new THREE.Vector3();
+
+renderer.domElement.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const zoomIn=e.deltaY<0;
+  const step=e.deltaY*0.04;
+  targetRadius=Math.max(8,Math.min(100,targetRadius+step));
+
+  // Desplazar suavemente el foco hacia el cubo apuntado
+  rc.setFromCamera(mouse,camera);
+  const hits=rc.intersectObjects(cubes);
+  if(hits.length){
+    const p=hits[0].point;
+    const strength=zoomIn?0.12:0.06;
+    tgtSmooth.x+=(p.x-tgtSmooth.x)*strength;
+    tgtSmooth.z+=(p.z-tgtSmooth.z)*strength;
+  }
+},{passive:false});
+
+// Smooth zoom + smooth pan interpolation
+function smoothZoom(){
+  radius+=(targetRadius-radius)*0.08;
+  tgt3.x+=(tgtSmooth.x-tgt3.x)*0.06;
+  tgt3.z+=(tgtSmooth.z-tgt3.z)*0.06;
+  updateCam();
+}
 let ltx=0,lty=0,lpd=0,tmoved=false;
 renderer.domElement.addEventListener('touchstart',e=>{if(e.touches.length===1){ltx=e.touches[0].clientX;lty=e.touches[0].clientY;isDown=true;tmoved=false;}if(e.touches.length===2)lpd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);});
 renderer.domElement.addEventListener('touchmove',e=>{tmoved=true;if(e.touches.length===1&&isDown){theta-=(e.touches[0].clientX-ltx)*0.005;phi=Math.max(0.1,Math.min(1.4,phi+(e.touches[0].clientY-lty)*0.005));ltx=e.touches[0].clientX;lty=e.touches[0].clientY;updateCam();}if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);radius=Math.max(8,Math.min(100,radius-(d-lpd)*0.1));lpd=d;updateCam();}e.preventDefault();},{passive:false});
@@ -773,6 +799,14 @@ function animate(){
     else if(i<CFG.EARLY_CUBES){if(cube!==hovered)cube.material.emissiveIntensity=Math.sin(time*2+i*0.5)*0.1+0.1;cube.rotation.y=time*0.1;}
     else cube.rotation.y=time*0.04;
   });
+  smoothZoom();
+  // Smooth zoom toward cursor
+  if(Math.abs(radius-targetRadius)>0.01){
+    radius+=(targetRadius-radius)*0.08;
+    tgt3.x+=(tgtSmooth.x-tgt3.x)*0.05;
+    tgt3.z+=(tgtSmooth.z-tgt3.z)*0.05;
+    updateCam();
+  }
   pl1.position.x=Math.sin(time*0.3)*30;pl1.position.z=Math.cos(time*0.3)*30;
   renderer.render(scene,camera);drawMinimap();
 }
@@ -790,7 +824,17 @@ function updateCubeVisual(idx){
   cube.material.color.setHex(c);cube.material.emissive.setHex(c);cube.material.opacity=0.78;
   cube.children[0].material.color.setHex(c);cube.children[0].material.opacity=0.7;
   cube.userData.isSold=true;
-  if(d.image_url){new THREE.TextureLoader().load(d.image_url,t=>{cube.material.map=t;cube.material.needsUpdate=true;});}
+  if(d.image_url){
+    new THREE.TextureLoader().load(d.image_url,t=>{
+      cube.material.map=t;
+      cube.material.color.setHex(0xffffff);
+      cube.material.emissive.setHex(0x111111);
+      cube.material.emissiveIntensity=0.1;
+      cube.material.transparent=false;
+      cube.material.opacity=1.0;
+      cube.material.needsUpdate=true;
+    });
+  }
 }
 function updateStats(){
   const sold=Object.keys(soldCubes).length,raised=Object.values(soldCubes).reduce((s,c)=>s+c.paidPrice,0);
