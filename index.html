@@ -670,10 +670,12 @@ camera.position.set(0,15,55);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 document.body.insertBefore(renderer.domElement,document.body.firstChild);
-scene.add(new THREE.AmbientLight(0x222233,1.2));
-const pl1=new THREE.PointLight(0xffd700,2.5,120);pl1.position.set(0,25,0);scene.add(pl1);
-const pl2=new THREE.PointLight(0x4466ff,1.2,100);pl2.position.set(-30,-10,20);scene.add(pl2);
-const pl3=new THREE.PointLight(0xffffff,1.0,100);pl3.position.set(30,10,-20);scene.add(pl3);
+scene.add(new THREE.AmbientLight(0x444466,2.0)); // más ambiente para iluminar todo parejo
+const pl1=new THREE.PointLight(0xffffff,2.0,150);pl1.position.set(0,60,0);scene.add(pl1);   // luz cenital fuerte
+const pl2=new THREE.PointLight(0xffd700,1.8,120);pl2.position.set(0,25,0);scene.add(pl2);   // dorada desde arriba
+const pl3=new THREE.PointLight(0x4466ff,1.0,100);pl3.position.set(-30,-10,20);scene.add(pl3);
+const pl4=new THREE.PointLight(0xffffff,0.8,100);pl4.position.set(30,10,-20);scene.add(pl4);
+const pl5=new THREE.PointLight(0xffffff,0.6,80);pl5.position.set(0,40,-40);scene.add(pl5);  // luz desde atrás-arriba
 scene.add(new THREE.GridHelper(120,40,0x111133,0x0a0a22)).position.y=-4;
 const geo=new THREE.BoxGeometry(CS,CS,CS),edgeGeo=new THREE.EdgesGeometry(geo);
 const cubes=[];
@@ -826,6 +828,10 @@ function updateCubeVisual(idx){
   cube.userData.isSold=true;
   if(d.image_url){
     new THREE.TextureLoader().load(d.image_url,t=>{
+      t.minFilter=THREE.LinearFilter;        // sin mipmaps = imagen más nítida
+      t.magFilter=THREE.LinearFilter;
+      t.anisotropy=renderer.capabilities.getMaxAnisotropy(); // máxima nitidez en ángulo
+      t.generateMipmaps=false;
       cube.material.map=t;
       cube.material.color.setHex(0xffffff);
       cube.material.emissive.setHex(0x111111);
