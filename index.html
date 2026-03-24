@@ -739,9 +739,60 @@ function smoothZoom(){
   updateCam();
 }
 let ltx=0,lty=0,lpd=0,tmoved=false;
-renderer.domElement.addEventListener('touchstart',e=>{if(e.touches.length===1){ltx=e.touches[0].clientX;lty=e.touches[0].clientY;isDown=true;tmoved=false;}if(e.touches.length===2)lpd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);});
-renderer.domElement.addEventListener('touchmove',e=>{tmoved=true;if(e.touches.length===1&&isDown){theta-=(e.touches[0].clientX-ltx)*0.005;phi=Math.max(0.1,Math.min(1.4,phi+(e.touches[0].clientY-lty)*0.005));ltx=e.touches[0].clientX;lty=e.touches[0].clientY;updateCam();}if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);radius=Math.max(8,Math.min(100,radius-(d-lpd)*0.1));lpd=d;updateCam();}e.preventDefault();},{passive:false});
-renderer.domElement.addEventListener('touchend',e=>{isDown=false;if(!tmoved&&e.changedTouches.length===1){const t=e.changedTouches[0];mouse.x=(t.clientX/innerWidth)*2-1;mouse.y=-(t.clientY/innerHeight)*2+1;rc.setFromCamera(mouse,camera);const h=rc.intersectObjects(cubes);if(h.length){const idx=h[0].object.userData.index;soldCubes[idx]?openAdModal(idx):openBuyModal(idx);}}});
+// ── TOUCH CONTROLS (mobile) ──
+renderer.domElement.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length===1){
+    ltx=e.touches[0].clientX;lty=e.touches[0].clientY;
+    isDown=true;tmoved=false;
+  }
+  if(e.touches.length===2){
+    lpd=Math.hypot(
+      e.touches[0].clientX-e.touches[1].clientX,
+      e.touches[0].clientY-e.touches[1].clientY
+    );
+  }
+},{passive:false});
+
+renderer.domElement.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  tmoved=true;
+  if(e.touches.length===1&&isDown){
+    const dx=e.touches[0].clientX-ltx;
+    const dy=e.touches[0].clientY-lty;
+    theta-=dx*0.008;
+    phi=Math.max(0.1,Math.min(1.4,phi+dy*0.008));
+    ltx=e.touches[0].clientX;
+    lty=e.touches[0].clientY;
+    updateCam();
+  }
+  if(e.touches.length===2){
+    const d=Math.hypot(
+      e.touches[0].clientX-e.touches[1].clientX,
+      e.touches[0].clientY-e.touches[1].clientY
+    );
+    const zoomDelta=lpd-d;
+    targetRadius=Math.max(8,Math.min(100,targetRadius+zoomDelta*0.15));
+    lpd=d;
+    updateCam();
+  }
+},{passive:false});
+
+renderer.domElement.addEventListener('touchend',e=>{
+  e.preventDefault();
+  isDown=false;
+  if(!tmoved&&e.changedTouches.length===1){
+    const t=e.changedTouches[0];
+    mouse.x=(t.clientX/innerWidth)*2-1;
+    mouse.y=-(t.clientY/innerHeight)*2+1;
+    rc.setFromCamera(mouse,camera);
+    const h=rc.intersectObjects(cubes);
+    if(h.length){
+      const idx=h[0].object.userData.index;
+      soldCubes[idx]?openAdModal(idx):openBuyModal(idx);
+    }
+  }
+},{passive:false});
 function updateCam(){camera.position.x=tgt3.x+radius*Math.sin(phi)*Math.sin(theta);camera.position.y=tgt3.y+radius*Math.cos(phi);camera.position.z=tgt3.z+radius*Math.sin(phi)*Math.cos(theta);camera.lookAt(tgt3);}
 
 // ════════════════════════════════════
